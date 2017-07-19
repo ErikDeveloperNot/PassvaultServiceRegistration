@@ -1,0 +1,45 @@
+{
+  "log": ["*"],
+  "adminInterface": ":4985",
+  "SSLCert": "/opt/couchbase-sync-gateway/ssl/cert.pem",
+  "SSLKey": "/opt/couchbase-sync-gateway/ssl/privkey.pem",
+  "databases": {
+    "passvault": {
+      "server": "http://localhost:8091",
+      "bucket": "passvault",
+      "password": "password",
+      "users": { 
+        "GUEST": { "disabled": false, "admin_channels": ["*"] }
+      }
+    },
+    "passvault_service": {
+      "server": "http://localhost:8091",
+      "bucket": "passvault_service",
+      "password": "password",
+      "users": {
+        "GUEST": { "disabled": true, "admin_channels": ["*"] }
+      },
+      "sync": 
+  	`
+          function (doc, oldDoc) {
+            if (doc._deleted) {
+		// In situations where a user changes their UUID will fail to delete old version with old
+                // UUID, but this maybe ok since other devices could still use the old UUID. This will 
+                // potentially lead orphaned docs, but no one is going to use this anyways
+                requireUser(oldDoc.AccountUUID);
+                // Skip other validation because a deletion has no other properties:
+                return;
+            }
+            // Required properties:
+            if (!doc.AccountUUID || !doc.AccountName || !doc.OldPassword || !doc.Password || !doc.UpdateTime || !doc.UserName) {
+                throw({forbidden: "Invalid Document"});
+            } 
+            // Verify User matches AccountUUID
+            requireUser(doc.AccountUUID);
+            // Finally, assign the document to the channels in the list:
+            channel("channel_" + doc.AccountUUID);
+          }
+        `
+    }
+  }
+}
