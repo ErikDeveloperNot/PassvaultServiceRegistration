@@ -20,12 +20,14 @@ import javax.ws.rs.core.Response;
 
 import org.glassfish.jersey.SslConfigurator;
 import org.glassfish.jersey.client.ClientConfig;
+import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
+import com.passvault.util.model.ChangesRequest;
 import com.passvault.util.model.CreateSyncAccountRequest;
 import com.passvault.util.model.SyncError;
+import com.sun.istack.internal.Nullable;
 
 public class SyncGatewayAdmin {
 
@@ -35,6 +37,7 @@ public class SyncGatewayAdmin {
 	
 	// hard code for now, should come from web.xml
 	private static String ADMIN_URL;
+	private static String SYNC_URL;
 	private static String DB_NAME;
 	public static String USER_PATH = "_user/";
 	public static String CHANNEL_PREFIX = "channel_";
@@ -48,11 +51,13 @@ public class SyncGatewayAdmin {
 			Context ctx = new InitialContext();
 		    Context env = (Context) ctx.lookup("java:comp/env");
 		    ADMIN_URL = (String) env.lookup("admin-url");
+		    SYNC_URL = (String) env.lookup("sync-gateway-url");
 		    DB_NAME = (String) env.lookup("sync-database-name");
 		} catch(Exception e) {
 			System.err.println("Error reading web.xml file for 'admin-url' property");
 			e.printStackTrace();
 			ADMIN_URL = "http://node1.user1.com:4985/";
+			SYNC_URL = "http://node1.user1.com:4984/";
 			DB_NAME = "passvault_service/";
 		}
 	}
@@ -83,7 +88,7 @@ public class SyncGatewayAdmin {
 		sendModel.setAdmin_channels(new String[] {CHANNEL_PREFIX + user});
 		sendModel.setDisabled(DISABLED);
 		
-		Response response = sendPOST(sendModel, new String[] {USER_PATH});
+		Response response = sendPOST(sendModel, new String[] {USER_PATH}, null, null);
 		int status = response.getStatus();
 		AccountCreationStatus toReturn;
 		
@@ -123,12 +128,22 @@ public class SyncGatewayAdmin {
 	
 	
 	
-	public static Response sendPOST(Object sendModel, String[] paths) {
+	public static Response sendPOST(Object sendModel, String[] paths, @Nullable String user, @Nullable String pass) {
 		//ClientConfig config = new ClientConfig();
         //Client client = ClientBuilder.newClient(config);
         Client client = getClient();
-        WebTarget target = client.target(ADMIN_URL + DB_NAME);
+        WebTarget target = null;
         
+        if (user != null) {
+        		HttpAuthenticationFeature feature = HttpAuthenticationFeature.basic(user, pass);
+        		client.register(feature);
+        		target = client.target(SYNC_URL + DB_NAME);
+        } else {
+        		target = client.target(ADMIN_URL + DB_NAME);
+        }
+        
+        //WebTarget target = client.target(ADMIN_URL + DB_NAME);
+
         // paths[] need to make sure path objects are in the correct order
         for (String path : paths) {
 			target = target.path(path);
@@ -140,7 +155,8 @@ public class SyncGatewayAdmin {
         Response response = null;
         
         try {
-			response = builder.post(Entity.json(sendMapper.writeValueAsString(sendModel)));
+        		response = builder.post(Entity.json(sendMapper.writeValueAsString(sendModel)));
+			//response = builder.post(Entity.json(sendMapper.writeValueAsString(sendModel)));
 		} catch (JsonProcessingException e) {
 			e.printStackTrace();
 			return response;
@@ -189,8 +205,9 @@ public class SyncGatewayAdmin {
 		return client;
 	}
 	
-	/*
+	
 	public static void main(String args[]) {
+		/*
 		Map<String, String> params = new HashMap<>();
 		params.put("rev", "1-557cb751cfc3437aa80aa1721a0c65bf");
 		Response resp = sendDELETE(new String[] {"user_003@mail.comtest_001"}, params);
@@ -206,7 +223,23 @@ public class SyncGatewayAdmin {
 			System.out.println(resp2.getStatus());
 			System.out.println(resp2.readEntity(String.class));
 		}
+		*/
+		
+		String channel = "channel_" + "test01@mail.com";
+		ChangesRequest request = new ChangesRequest();
+		request.setActive_only(true);
+		request.setFilter("sync_gateway/bychannel");
+		request.setLimit(0);
+		request.setSince(0);
+		request.setChannels(channel);
+		
+		Response response = SyncGatewayAdmin.sendPOST(request, new String[] {"_changes"}, "test01@mail.com", "password");
+		
+		int status = response.getStatus();
+		System.out.println(status);
+		
+		System.out.println(response.readEntity(String.class));
 	
 	}
-	*/
+	
 }
