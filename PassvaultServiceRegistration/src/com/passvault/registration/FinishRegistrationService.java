@@ -90,7 +90,8 @@ public class FinishRegistrationService {
 		  
 		  
 		  // Get gateway config to send back
-		  Gateway returnModel = Util.getGateway(account.getUuid(), account.getPassword());
+		  Gateway returnModel = Util.getGateway(account.getUuid(), account.getPassword(), 
+				  RegistrationServiceV1.SyncServerType.COUCH_BASE);
 	      
 		  
 		  // done with second part of registration, return Gateway

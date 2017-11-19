@@ -9,21 +9,18 @@ import java.util.logging.Logger;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.passvault.registration.utils.SyncGatewayAdmin;
 import com.passvault.registration.utils.Util;
-import com.passvault.registration.utils.SyncGatewayAdmin.AccountCreationStatus;
-import com.passvault.registration.utils.SyncGatewayAdminException;
+import com.passvault.server.PassvaultSyncServer;
+import com.passvault.server.PassvaultSyncServer.Codes;
 import com.passvault.util.model.Change;
 import com.passvault.util.model.Changes;
 import com.passvault.util.model.ChangesRequest;
 import com.passvault.util.model.DeleteRequest;
-import com.passvault.util.model.RegistrationEmail;
-import com.passvault.util.model.RegistrationRequest;
 
 
 
@@ -49,6 +46,7 @@ public class DeleteService {
 		
 		logger.setLevel(Level.FINEST);
 		
+		/*
 		ObjectMapper mapper = new ObjectMapper();
 		DeleteRequest request = new DeleteRequest();
 		
@@ -62,20 +60,22 @@ public class DeleteService {
 		String user = request.getUser();
 		String password = request.getPassword();
 		
-		logger.log(Level.INFO, "Received delete account request for: " + user);
 		
 		if (user == null || !Util.verifyValidEmail(user)) {
 			return Response.status(400).entity("Invalid Data").build();
-		}
+		}*/
+		Holder holder = verifyInput(jsonIn);
+		
+		logger.log(Level.INFO, "Received delete account request for: " + holder.user);
 		
 		Changes changes = null;
 		
 		// 1. get current doc list for user
 		try {
-			changes = getChangesFeed(user, password);
+			changes = getChangesFeed(holder.user, holder.password);
 		} catch (Exception e) {
-			logAccountForDeletion(user);
-			logger.log(Level.SEVERE, " FAILED to get _changes feed for account: " + user);
+			logAccountForDeletion(holder.user);
+			logger.log(Level.SEVERE, " FAILED to get _changes feed for account: " + holder.user);
 			e.printStackTrace();
 			return Response.status(202).entity("Account has been logged and will be deleted.").build();
 		}
@@ -85,16 +85,16 @@ public class DeleteService {
 			deleteDocs(changes.getResults());
 		
 		// 3. delete user
-		Response resp = SyncGatewayAdmin.sendDELETE(new String[] {SyncGatewayAdmin.USER_PATH, user}, null);
+		Response resp = SyncGatewayAdmin.sendDELETE(new String[] {SyncGatewayAdmin.USER_PATH, holder.user}, null);
 		
 		if (resp != null) {
 			int status = resp.getStatus();
 			
 			if (status >= 200 && status <300) {
-				logger.log(Level.INFO, "Account: " + user + ", has been deleted.");
+				logger.log(Level.INFO, "Account: " + holder.user + ", has been deleted.");
 				return Response.status(200).entity("Account has been deleted.").build();
 			} else if (status == 404) { 
-				logger.log(Level.INFO, "delete account: " + user + ", status=" + resp.getStatus() +
+				logger.log(Level.INFO, "delete account: " + holder.user + ", status=" + resp.getStatus() +
 						", account not found");
 				return Response.status(404).entity("Account not found.").build();
 			} else {
@@ -103,54 +103,40 @@ public class DeleteService {
 				if (resp.hasEntity()) 
 					result = resp.readEntity(String.class);
 					
-				logger.log(Level.WARNING, "failed to delete account: " + user + "\n" + result);
-				logAccountForDeletion(user);
+				logger.log(Level.WARNING, "failed to delete account: " + holder.user + "\n" + result);
+				logAccountForDeletion(holder.user);
 				return Response.status(202).entity("Account has been logged and will be deleted.").build();
 			}
 		}
 			
-		logger.log(Level.WARNING, "failed to delete account: " + user);
-		logAccountForDeletion(user);
+		logger.log(Level.WARNING, "failed to delete account: " + holder.user);
+		logAccountForDeletion(holder.user);
 		return Response.status(202).entity("Account has been logged and will be deleted.").build();
 	}
 		
-		/*
-		try {
-			
-			if (deleteUser(accountToDelete)) {
-				logger.log(Level.INFO, "Account: " + accountToDelete + ", has been deleted.");
-				return Response.status(200).entity("Account has been deleted.").build();
-			} else {
-				logger.log(Level.SEVERE, " FAILED to delete account: " + accountToDelete);
-				logAccountForDeletion(accountToDelete);
-				return Response.status(202).entity("Account has been logged and will be deleted.").build();
-			}
-			
-		} catch (SyncGatewayAdminException e) {
-			logger.log(Level.SEVERE, " FAILED to delete account: " + accountToDelete);
-			e.printStackTrace();
-			Response resp = e.getResponse();
-			
-			if (resp != null) {
-				
-				if (resp.getStatus() == 404) {
-					String reason = "";
-					
-					if (resp.hasEntity())
-						reason = resp.readEntity(String.class);
-					
-					logger.log(Level.INFO, "delete account: " + accountToDelete + ", status=" + resp.getStatus() +
-							", " + reason);
-					return Response.status(404).entity("Account not found.").build();
-				}
-			} 
-				
-			logAccountForDeletion(accountToDelete);
+	
+	@Path("sync-server/")
+	@POST
+	@Consumes(MediaType.APPLICATION_JSON)  //RegistrationEmail model
+	public Response deleteAccountSyncServer(String jsonIn) {
+		logger.setLevel(Level.FINEST);
+		Holder holder = verifyInput(jsonIn);
+		
+		logger.log(Level.INFO, "Received delete account request for: " + holder.user);
+		int result = PassvaultSyncServer.getInstance().deleteAccountUUID(holder.user, holder.password);
+		logger.info("Result for delete: " + result + ", " + PassvaultSyncServer.Codes.getErrorStringForCode(result));
+		
+		switch (result) {
+		case Codes.SUCCESS:
+			logger.log(Level.INFO, "Account: " + holder.user + ", has been deleted.");
+			return Response.status(200).entity("Account has been deleted.").build();
+		case Codes.ERROR:
+		default:
+			logger.log(Level.WARNING, "failed to delete account: " + holder.user);
+			logAccountForDeletion(holder.user);
 			return Response.status(202).entity("Account has been logged and will be deleted.").build();
 		}
-		*/
-	
-	
+	}
 	
 	private void logAccountForDeletion(String account) {
 		// TODO - in case of Exception log Account ID for Manual deletion and return
@@ -265,5 +251,40 @@ public class DeleteService {
 		}
 
 		return toReturn;
+	}
+	
+	
+	
+	private Holder verifyInput(String jsonIn) {
+		Holder holder = new Holder();
+		ObjectMapper mapper = new ObjectMapper();
+		DeleteRequest request = new DeleteRequest();
+		
+		try {
+			  request = mapper.readValue(jsonIn, DeleteRequest.class);
+		} catch(Exception e) {
+			e.printStackTrace();
+			holder.error = true;
+			holder.response = Response.status(500).entity("Unable to parse request").build();
+		}
+		
+		holder.user = request.getUser();
+		holder.password = request.getPassword();
+		
+		
+		if (holder.user == null || !Util.verifyValidEmail(holder.user)) {
+			holder.error = true;
+			holder.response = Response.status(400).entity("Invalid Data").build();
+		}
+		
+		return holder;
+	}
+	
+	
+	private class Holder {
+		String user;
+		String password;
+		boolean error;
+		Response response;
 	}
 }

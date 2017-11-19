@@ -3,11 +3,12 @@
   
   <display-name>PassvaultServiceRegistration</display-name>
   
+  <!-- couchbase Sync entries -->
   <env-entry> 
     <env-entry-name>admin-url</env-entry-name>
     <env-entry-type>java.lang.String</env-entry-type>
     <!--env-entry-value>https://node1.user1.com:4985/</env-entry-value--> 
-    <env-entry-value>https://ec2-54-193-22-33.us-west-1.compute.amazonaws.com:4985/</env-entry-value> 
+    <env-entry-value>https://ec2-13-56-39-109.us-west-1.compute.amazonaws.com:4985/</env-entry-value> 
   </env-entry>
   <env-entry> 
     <env-entry-name>sync-database-name</env-entry-name>
@@ -18,8 +19,34 @@
     <env-entry-name>sync-gateway-url</env-entry-name>
     <env-entry-type>java.lang.String</env-entry-type>
     <!--env-entry-value>https://node1.user1.com:4984/</env-entry-value-->
-    <env-entry-value>https://ec2-54-193-22-33.us-west-1.compute.amazonaws.com:4984/</env-entry-value> 
+    <env-entry-value>https://ec2-13-56-39-109.us-west-1.compute.amazonaws.com:4984/</env-entry-value> 
   </env-entry>
+  
+  <!-- PassvaultSyncServer entries -->
+   <env-entry> 
+    <env-entry-name>passvault-sync-server-url</env-entry-name>
+    <env-entry-type>java.lang.String</env-entry-type>
+    <env-entry-value>https://localhost:8443/</env-entry-value>
+    <!--env-entry-value>https://ec2-13-56-39-109.us-west-1.compute.amazonaws.com:8443/</env-entry-value--> 
+  </env-entry>
+  <env-entry> 
+    <env-entry-name>passvault-sync-server-path</env-entry-name>
+    <env-entry-type>java.lang.String</env-entry-type>
+    <env-entry-value>PassvaultServiceRegistration/service/sync-accounts</env-entry-value>
+  </env-entry>
+   
+  <resource-ref>
+    <description>postgreSQL Datasource</description>
+    <res-ref-name>jdbc/postgres</res-ref-name>
+    <res-type>javax.sql.DataSource</res-type>
+    <res-auth>Container</res-auth>
+  </resource-ref>
+  
+  <listener>
+	<listener-class>
+             com.passvault.server.PassvaultSyncServerServletContextListener
+        </listener-class>
+   </listener>
   
   <servlet>
     <servlet-name>Jersey REST Service</servlet-name>
@@ -27,7 +54,7 @@
      <!-- Register resources and providers under com.vogella.jersey.first package. -->
     <init-param>
         <param-name>jersey.config.server.provider.packages</param-name>
-        <param-value>com.passvault.registration</param-value>
+        <param-value>com.passvault.registration;com.passvault.server.sync</param-value>
     </init-param>
     <load-on-startup>1</load-on-startup>
   </servlet>

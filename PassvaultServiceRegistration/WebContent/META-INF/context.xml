@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<Context>
+
+    <!-- file:///opt/apache-tomcat-8.5.16/tomcat-8.5-doc/jndi-resources-howto.html 
+    		maxWaitMillis - The maximum number of milliseconds that the pool will wait (when there are no available connections)
+    					    for a connection to be returned before throwing an exception. Default: -1 (infinite)
+    		validationQuery - SQL query that can be used by the pool to validate connections before they are returned to the application. 
+    					      If specified, this query MUST be an SQL SELECT statement that returns at least one row.
+    		validationQueryTimeout - Timeout in seconds for the validation query to return. Default: -1 (infinite)
+    		removeAbandoned - true or false: whether to remove abandoned connections from the pool. Default: false
+    		removeAbandonedTimeout - The number of seconds after which a borrowed connection is assumed to be abandoned. Default: 300
+    		logAbandoned - true or false: whether to log stack traces for application code which abandoned a statement or connection. 
+    					   This adds serious overhead. Default: false -->
+    					   
+    <Resource name="jdbc/postgres" auth="Container"
+          type="javax.sql.DataSource" driverClassName="org.postgresql.Driver"
+          url="jdbc:postgresql://192.168.56.102/passvault"
+          username="passvault-user" password="passvault-secret" maxTotal="20" maxIdle="10" initialSize="5"
+          maxWaitMillis="30000" removeAbandonedOnBorrow="true" removeAbandonedOnMaintenance="false" 
+          logAbandoned="true"/>
+          <!--validationQueryTimeout="10" validationQuery="SELECT account_uuid FROM users limit 1"/-->
+
+</Context>

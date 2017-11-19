@@ -4,7 +4,6 @@ package com.passvault.registration;
 import java.util.UUID;
 
 import javax.ws.rs.Consumes;
-import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
@@ -14,7 +13,6 @@ import javax.ws.rs.core.Response;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-
 import com.passvault.registration.utils.Util;
 import com.passvault.util.model.RegistrationRequest;
 import com.passvault.util.model.RegistrationUUID;
